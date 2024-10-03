@@ -35,3 +35,4 @@ The **Repo Management Console** is a Bash script designed to facilitate the mana
    ```bash
    cd centos7_almalinux_repo_manager
    sudo chmod +rx repomanager.sh
+   sudo bash repomanager.sh
