@@ -19,8 +19,6 @@ The **Repo Management Console** is a Bash script designed to facilitate the mana
 
 ## Packages sub menu features
 
-## Features
-
 1. **List all installed packages**
    - Displays a list of all packages currently installed on the system.
 
