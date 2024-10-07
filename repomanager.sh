@@ -533,16 +533,21 @@ list_all_paths() {
 # Function to search for a regular expression in a log file
 search_in_logfile() {
     # Prompt user for the logfile path and the regular expression to search for
+    
     read -p "Enter the path to the log file: " logfile
-    echo
-    read -p "Enter the regular expression to search for: " regex
-
+    
     # Check if the log file exists
     if [[ ! -f "$logfile" ]]; then
         echo
         echo "Error: Log file '$logfile' not found."
-        return 1
+        echo
+		echo "--------------------------------------------------------------------"
+		read -p "Press enter to return to main menu: " enter
+		main_menu
     fi
+    
+    echo
+    read -p "Enter the regular expression to search for: " regex
 
     echo
     echo "Searching for pattern '$regex' in $logfile..."
@@ -557,14 +562,18 @@ search_in_logfile() {
         echo "Matches found:"
         echo
         echo "$matches"
+        echo "--------------------------------------------------------------------"
+
     else
         echo
         echo "No matches found for pattern '$regex' in $logfile."
+        
     fi
 
     echo
     echo "--------------------------------------------------------------------"
 	read -p "Press enter to return to main menu: " enter
+	main_menu
 }
 
 repomanager_generated_logfiles() {
