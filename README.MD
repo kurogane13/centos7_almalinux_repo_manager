@@ -16,6 +16,11 @@ The **Repo Management Console** is a Bash script designed to facilitate the mana
 - Backup and rollback repository configurations
 - Fetch and log AlmaLinux and CentOS mirrors
 - Search for specific patterns in repository files and logs
+- Search for all child urls in a mirror, or any given url
+- Search for files in chidl urls
+- Generate log files of mirrors, parent urls, child urls
+- Search for regular expressions in saved log files
+- Validate a url or mirror with curl
 
 ## Packages sub menu features
 
