@@ -392,32 +392,227 @@ read_almalinux_log() {
     read -p "Press Enter to return to the main menu..."
 }
 
+curl_for_alma() {
+	os_version=$(grep "^VERSION_ID" /etc/os-release | cut -d'=' -f2 | tr -d '"')
+	echo
+	echo "This option will get a mirror url, and test if the base url exists. "
+	echo
+	echo "It will build the <almalinux_version_id>/BaseOS/x86_64/os/, to check if a valid mirror exists."
+	echo
+	read -p "Copy and paste a valid almalinux mirror url from option 19, and press enter: " curl_alma_url
+	
+    cleaned_curl_for_alma="${curl_alma_url%/}"  # Remove trailing slash
+	cleaned_os_version="${os_version#/}"        # Remove leading slash
+
+	# Construct the URL with single slashes
+	alma_curl_url="$cleaned_curl_for_alma/$cleaned_os_version/BaseOS/x86_64/os/"
+
+	# Print the resulting URL
+    echo
+	echo "$alma_curl_url"
+    echo
+    curl -s -v -I $alma_curl_url
+    echo "--------------------------------------------------------------------"
+	read -p "Press enter to return to main menu: " enter 
+}
+
+curl_for_centos7() {
+	# Hardcode CentOS version for CentOS 7 as it is fixed
+	os_version="7"
+	echo
+	echo "This option will get a mirror URL, and test if the CentOS 7 base URL exists."
+	echo
+	echo "It will build the <centos_version>/BaseOS/x86_64/os/, to check if a valid mirror exists."
+	echo
+	read -p "Copy and paste a valid CentOS 7 mirror URL from option 20, and press enter: " curl_centos_url
+
+	# Clean up the URL and version to avoid double slashes
+	cleaned_curl_for_centos="${curl_centos_url%/}"  # Remove trailing slash
+	cleaned_os_version="${os_version#/}"            # Remove leading slash (not necessary but keeping consistent)
+
+	# Construct the URL with single slashes
+	centos_curl_url="$cleaned_curl_for_centos/$cleaned_os_version/os/x86_64/"
+
+	# Print the resulting URL
+	echo
+	echo "$centos_curl_url"
+	echo
+
+	# Perform the curl command to test the URL
+	curl -s -v -I "$centos_curl_url"
+	echo
+	echo "--------------------------------------------------------------------"
+	read -p "Press enter to return to main menu: " enter
+}
+
+
+LOG_FILE="url_subdirectories_and_files.log"
+# Clear the log file at the start
+> "$LOG_FILE"
+
+# Function to list all subdirectories and files recursively and log the results
+list_all_paths() {
+    read -p "Enter the base URL (e.g., https://mirror.alma.iad1.serverforge.org/8.10/): " base_url
+
+    echo
+    echo "Checking for subdirectories and files inside $base_url..."
+    echo
+
+    # Remove trailing slash from the URL if present
+    base_url="${base_url%/}"
+
+    # Initialize an array to store directories to search
+    directories_to_check=("$base_url")
+    
+    # Generate the log file name dynamically based on the base_url
+    # Replace "/" and ":" in base_url with "_"
+    sanitized_base_url=$(echo "$base_url" | sed 's/[\/:]/_/g')
+    LOG_FILE="${sanitized_base_url}__repomanager_program_paths.log"
+
+    # Function to get subdirectories and files of a given URL
+    get_links() {
+        local url=$1
+        # Use curl to get the directory listing
+        response=$(curl -sL -A "Mozilla/5.0" "$url")
+
+        # Extract all href links from the page (both files and directories)
+        echo "$response" | grep -oP '(?<=href=")[^"]+(?=")' | sort -u
+    }
+
+    # Log the base URL
+    echo "Base URL: $base_url" | tee -a "$LOG_FILE"
+
+    # Loop through each directory in the array
+    while [[ ${#directories_to_check[@]} -gt 0 ]]; do
+        # Pop the first directory from the array
+        current_dir="${directories_to_check[0]}"
+        directories_to_check=("${directories_to_check[@]:1}")
+
+        echo
+        echo "Checking paths in: $current_dir"
+        
+        # Get the links (both files and subdirectories) for the current directory
+        links=$(get_links "$current_dir")
+
+        # If there are links, process them
+        if [[ -n "$links" ]]; then
+            echo
+            echo "Found paths in $current_dir:"
+            echo
+            for link in $links; do
+                # Construct the full URL
+                # Handle relative links by appending to the base URL
+                if [[ "$link" == /* ]]; then
+                    full_url="$base_url$link"
+                else
+                    full_url="$current_dir/$link"
+                fi
+                
+                # Check if the link is a directory (ends with "/") or a file
+                if [[ "$link" == */ ]]; then
+                    echo "Subdirectory: $full_url" | tee -a "$LOG_FILE"
+                    # Add the subdirectory to the array to check its contents later
+                    directories_to_check+=("$full_url")
+                else
+                    echo
+                    echo "File: $full_url" | tee -a "$LOG_FILE"
+                fi
+            done
+        else
+            echo "No files or subdirectories found in: $current_dir"
+        fi
+
+        echo
+    done
+
+    echo "All validated URLs have been logged to $LOG_FILE"
+    echo "--------------------------------------------------------------------"
+	read -p "Press enter to return to main menu: " enter
+}
+
+# Function to search for a regular expression in a log file
+search_in_logfile() {
+    # Prompt user for the logfile path and the regular expression to search for
+    read -p "Enter the path to the log file: " logfile
+    echo
+    read -p "Enter the regular expression to search for: " regex
+
+    # Check if the log file exists
+    if [[ ! -f "$logfile" ]]; then
+        echo
+        echo "Error: Log file '$logfile' not found."
+        return 1
+    fi
+
+    echo
+    echo "Searching for pattern '$regex' in $logfile..."
+    echo
+
+    # Use grep to search for the regular expression in the log file
+    matches=$(grep -E "$regex" "$logfile")
+
+    # Check if there are any matches
+    if [[ -n "$matches" ]]; then
+        echo
+        echo "Matches found:"
+        echo
+        echo "$matches"
+    else
+        echo
+        echo "No matches found for pattern '$regex' in $logfile."
+    fi
+
+    echo
+    echo "--------------------------------------------------------------------"
+	read -p "Press enter to return to main menu: " enter
+}
+
+repomanager_generated_logfiles() {
+	echo
+	read -p "Press enter to view all .log files generated by this program: " enter
+	echo
+	ls -lha | grep 'repomanager_program_paths.log'
+	echo
+    echo "--------------------------------------------------------------------"
+	read -p "Press enter to return to main menu: " enter
+	
+}	
+
 # Packages Menu Function
 packages_menu() {
     while true; do
-        echo ""
-        echo "*** Packages Menu ***"
-        echo
-        echo "1) List all installed packages"
-        echo "2) List installed packages from a repository"
-        echo "3) List all avialable packages from a specific repo"
-        echo "4) List all updates from a specific repo"
-        echo "5) Get Package info"
-        echo "6) Get package info from a specific repo"
-        echo "7) Install a package from a specific repo"
-        echo "8) Update a package from a specific repo"
-        echo "9) Remove a package from a specific repo"
-        echo "10) Search for a package"
-        echo "11) Install a package"
-        echo "12) Remove a package"
-        echo "13) Update a package"
-        echo "14) List available package groups"
-        echo "15) Install a package group"
-        echo "16) Remove a package group"
-        echo "----------------------------------------------------------"
-        echo "17) Go back to the Main Menu"
-        echo
-        read -p "Enter your choice: " pkg_choice
+		echo ""
+		echo "*** Packages Menu ***"
+		echo
+		echo "===== PACKAGE LISTING OPTIONS ====="
+		echo
+		echo "1) List all installed packages"
+		echo "2) List installed packages from a repository"
+		echo "3) List all available packages from a specific repo"
+		echo "4) List all updates from a specific repo"
+		echo "5) Get package info"
+		echo "6) Get package info from a specific repo"
+		echo
+		echo "===== PACKAGE INSTALLATION & REMOVAL ====="
+		echo
+		echo "7) Install a package from a specific repo"
+		echo "8) Update a package from a specific repo"
+		echo "9) Remove a package from a specific repo"
+		echo "10) Search for a package"
+		echo "11) Install a package"
+		echo "12) Remove a package"
+		echo "13) Update a package"
+		echo
+		echo "===== PACKAGE GROUP OPERATIONS ====="
+		echo
+		echo "14) List available package groups"
+		echo "15) Install a package group"
+		echo "16) Remove a package group"
+		echo "----------------------------------------------------------"
+		echo
+		echo "17) Go back to the Main Menu"
+		echo
+		read -p "Enter your choice: " pkg_choice
 
         case $pkg_choice in
             1) list_installed_packages ;;
@@ -680,15 +875,18 @@ remove_package_group() {
 }
 
 # Interactive menu
+
 while true; do
     echo ""
-    echo "*** Repo operations main menu ***"
+    echo "*** Repo Operations Main Menu ***"
     echo
-    echo "Select an option:"
-    echo
+    echo "===== REPO LISTING OPTIONS ====="
     echo "1) List all repo files"
     echo "2) List enabled repos"
     echo "3) List disabled repos"
+    echo
+    echo "===== REPO MANAGEMENT OPTIONS ====="
+    echo
     echo "4) Enable a repo"
     echo "5) Disable a repo"
     echo "6) Read the content of a repo"
@@ -697,22 +895,50 @@ while true; do
     echo "9) Rollback repo from .bak"
     echo "10) Remove a repo"
     echo "11) Backup a repo"
-    echo "12) Modify all repos base url"
-    echo "13) Create .bak copies of all repos in /etc/yum.repos.d/"
-    echo "14) Restore all .bak repos in /etc/yum.repos.d/ to .repo" 
-    echo "15) Log almalinux mirrors to logfile | will fetch almalinux mirrors and dump content to log file"
-    echo "16) Log centos7 mirrors to logfile | will fetch centos 7 mirrors and dump content to log file"
-    echo "17) Read Centos7 log file"
-    echo "18) Read Almalinux log file"
-    echo "19) Look for a regular expression in almalinux mirrors log file"
-    echo "20) Look for a regular expression in centos7 mirrors log file"
-    echo "21) Run yum clean all"
-    echo "22) Run yum makecache"
-    echo "23) Clean repos metadata"
-    echo "----------------------------------------------------------"
-    echo "24) AccessPackages Menu"
     echo
-    echo "25) Exit"
+    echo "===== GLOBAL REPO OPERATIONS ====="
+    echo
+    echo "12) Modify all repos base URL"
+    echo "13) Create .bak copies of all repos in /etc/yum.repos.d/"
+    echo "14) Restore all .bak repos in /etc/yum.repos.d/ to .repo"
+    echo
+    echo "===== MIRROR LOGGING OPTIONS ====="
+    echo
+    echo "15) Log Almalinux mirrors to logfile | Fetch Almalinux mirrors and dump content to log file"
+    echo "16) Log CentOS7 mirrors to logfile | Fetch CentOS7 mirrors and dump content to log file"
+    echo "17) Read CentOS7 log file"
+    echo "18) Read Almalinux log file"
+    echo
+    echo "===== REGULAR EXPRESSION SEARCH ====="
+    echo
+    echo "19) Look for a regular expression in Almalinux mirrors log file"
+    echo "20) Look for a regular expression in CentOS7 mirrors log file"
+    echo
+    echo "===== CURL REPO VALIDATION ====="
+    echo
+    echo "21) Run curl to test if an Almalinux repo is a valid BASE OS repo"
+    echo "22) Run curl to test if a CentOS7 repo is a valid BASE OS repo"
+    echo
+    echo "===== SEARCH FOR MIRRORS, URLS, AND FILES ====="
+    echo
+    echo "23) Provide a baseurl, searches all child ulrs, and files in it."
+    echo "24) Search for a regexp, in log file"
+    echo
+    echo "===== LOG FILES ====="
+    echo
+    echo "25) View all .log files generated with this program"
+    echo
+    echo "===== REPO CLEANUP OPTIONS ====="
+    echo
+    echo "26) Run 'yum clean all'"
+    echo "27) Run 'yum makecache'"
+    echo "28) Clean repos metadata"
+    echo
+    echo "----------------------------------------------------------"
+    echo
+    echo "29) Access Packages Menu"
+    echo
+    echo "30) Exit"
     echo
     read -p "Enter your choice: " choice
 
@@ -737,25 +963,30 @@ while true; do
         18) read_almalinux_log ;;
         19) search_in_almalinux_log ;;
         20) search_in_centos7_log ;;
-        21) 
+        21) curl_for_alma ;;
+        22) curl_for_centos7 ;;
+        23) list_all_paths ;;
+        24) search_in_logfile ;;
+        25) repomanager_generated_logfiles ;;
+        26) 
             sudo yum clean all
             echo
             read -p "Press enter to return to main menu: " enter
             ;;
-        22) 
+        27) 
             sudo yum makecache
             echo
             read -p "Press enter to return to main menu: " enter
             ;;
-        23) 
+        28) 
             sudo yum clean metadata
             echo
             read -p "Press enter to return to main menu: " enter
             ;;
-        24) packages_menu
+        29) packages_menu
             ;;
 				
-        25) echo "Exiting the program."
+        30) echo "Exiting the program."
             exit 0 
             ;;
         *)  
@@ -763,3 +994,6 @@ while true; do
             echo "Invalid choice. Please provide a valid choice number from the menu."; echo; read -p "Press Enter to return to the main menu..." ;;
     esac
 done
+
+
+
