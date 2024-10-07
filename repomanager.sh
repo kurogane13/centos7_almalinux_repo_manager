@@ -451,8 +451,6 @@ packages_menu() {
 
 # Function Definitions
 
-# Function Definitions
-
 list_installed_packages() {
     echo ""
     echo "Listing all installed packages..."
