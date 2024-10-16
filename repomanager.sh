@@ -347,10 +347,10 @@ search_in_centos7_log() {
     if [[ -f centos7_mirrors.log ]]; then
         read -p "Enter the regex pattern to search in centos7.log: " pattern
         echo "Searching for '$pattern' in centos7.log..."
-        grep -E "$pattern" centos7.log || echo "No matches found for '$pattern'."
+        grep -E "$pattern" centos7_mirrors.log || echo "No matches found for '$pattern'."
     else
         echo
-        echo "centos7_mirrors.log does not exist. First run option 13 to create the centos7_mirrors.log file"
+        echo "centos7_mirrors.log does not exist. First run option 16 to create the centos7_mirrors.log file"
     fi
     echo
     read -p "Press Enter to return to the main menu..."
